@@ -1,6 +1,11 @@
 #Add Libraries
 library("e1071")
 library("Metrics")
+library("rpart")
+library("randomForest")
+library("party")
+library("MASS")
+library("ridge")
 
 #Set Globals
 setwd("C:\\Users\\Administrator\\Documents\\GitHub\\LM")
@@ -10,7 +15,7 @@ setwd("C:\\Users\\Administrator\\Documents\\GitHub\\LM")
 userfunction.KmeansClusterApproximate = function(dataset){
   x = round(sqrt(nrow(dataset)/2), digits=0)
   if x > 
-  return(round(sqrt(nrow(dataset)/2), digits=0))
+    return(round(sqrt(nrow(dataset)/2), digits=0))
 }
 ##Build a cluster model, predict each row, append to dataset
 userfunction.Kmeans = function(InputData, numberofclusters){ 
@@ -27,42 +32,56 @@ userfunction.KmeansClusterPlot = function(TestData, Name){
   
 }
 
+WeightedGini <- function(solution, weights, submission){
+  df = data.frame(solution = solution, weights = weights, submission = submission)
+  df <- df[order(df$submission, decreasing = TRUE),]
+  df$random = cumsum((df$weights/sum(df$weights)))
+  totalPositive <- sum(df$solution * df$weights)
+  df$cumPosFound <- cumsum(df$solution * df$weights)
+  df$Lorentz <- df$cumPosFound / totalPositive
+  n <- nrow(df)
+  gini <- sum(df$Lorentz[-1]*df$random[-n]) - sum(df$Lorentz[-n]*df$random[-1])
+  return(gini)
+}
+
+NormalizedWeightedGini <- function(solution, weights, submission) {
+  WeightedGini(solution, weights, submission) / WeightedGini(solution, weights, solution)
+}
+
 #####MODEL TRAINING DATA######
 #Read Files
-Train = read.csv("data\\train.csv", header = TRUE, nrows=100000)
+Train = read.csv("data\\train.csv", header = TRUE)
 
 #Adjust NA's to 0
-Train[is.na(Train)] = 0
+Train[is.na(Train)] = 0.0
 
 ##Find cluster sizes based off sample of 10k
 #userfunction.KmeansClusterPlot(Train[21:29], "Crime Clusters") #3
 #userfunction.KmeansClusterPlot(Train[30:66], "Geo Clusters") #3
 #userfunction.KmeansClusterPlot(Train[67:302], "Weather Clusters")
 cclusters = 3
-gclusters = 4
+gclusters = 3
 wclusters = 15
 
-
-
-##Build Clusteres
-
+##Build Clusters
 Train.new = data.frame(Train[1:19], CrimeCluster = userfunction.Kmeans(Train[21:29], cclusters))
 Train.new = data.frame(Train.new, GeoCluster = userfunction.Kmeans(Train[30:66], gclusters))
-Train.new = data.frame(Train.new, WeatherCluster = userfunction.Kmeans(Train[67:302], wclusters))
-Train = Train.new
-remove(Train.new)
+#Train.new = data.frame(Train.new, WeatherCluster = userfunction.Kmeans(Train[67:302], wclusters))
+keep = c("target", "var11","var12","var13","var14","var15","var16","var17")
+Train.new = subset(Train.new[keep])
 
-#Build SVM
-model = svm(target~., data=Train[2:22])
+#Build MODEL
+#model = lm.ridge(target~., data=Train.new)
+#model = linearRidge(target~., data=Train.new)
+#model = glm(target~.,data=Train.new)
+model = glm(target~.,data=Train.new)
 
-#Predict Test
+
+#model = svm(target~.,data=Train)
 Predicted.Train = cbind(Train, predict = predict(model, Train[2:22], interval="predict"))
-
-
-str(Train)
-str(Test)
-
-
+# Train.sub = subset(Predicted.Train,id>100000)
+NormalizedWeightedGini(Predicted.Train$target, Predicted.Train$var11,Predicted.Train$predict)
+# ftable(predict(model), Train$target)
 
 #####TEST  DATA######
 #Read Files
@@ -74,15 +93,13 @@ Test[is.na(Test)] = 0
 #Create clusters for analysis of crime, weather, and geo
 Test.new = data.frame(Test[1:18], CrimeCluster = userfunction.Kmeans(Test[20:28], cclusters))
 Test.new = data.frame(Test.new, GeoCluster = userfunction.Kmeans(Test[29:65], gclusters))
-Test.new = data.frame(Test.new, WeatherCluster = userfunction.Kmeans(Test[66:301], wclusters))
-Test = Test.new
-remove(Test.new)
+#Test.new = data.frame(Test.new, WeatherCluster = userfunction.Kmeans(Test[66:301], wclusters))
 
-Predicted = cbind(Test, predict = predict(model, Test[2:21], interval="predict"))
+keep = c("var11","var12","var13","var14","var15","var16","var17")
+Test.new = subset(Test.new[keep])
+??
+Predicted = cbind(Test, predict = predict(model, Test.new, interval="predict"))
 
 #output to files
 out = c("id", "predict")
 write.csv(Predicted[out], "data\\results.csv", row.names = FALSE)
-
-
-
