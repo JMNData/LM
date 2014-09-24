@@ -69,12 +69,16 @@ Train.new = data.frame(Train.new, GeoCluster = userfunction.Kmeans(Train[30:66],
 #Train.new = data.frame(Train.new, WeatherCluster = userfunction.Kmeans(Train[67:302], wclusters))
 keep = c("target", "var11","var12","var13","var14","var15","var16","var17")
 Train.new = subset(Train.new[keep])
+trainx = sapply(Train.new, scale)
 
 #Build MODEL
 #model = lm.ridge(target~., data=Train.new)
 #model = linearRidge(target~., data=Train.new)
 #model = glm(target~.,data=Train.new)
-model = glm(target~.,data=Train.new)
+#model = glm(target~.,data=Train.new)
+# 
+# as.matrix(cor(Train.new))
+ corrgram(trainx)
 
 
 #model = svm(target~.,data=Train)
