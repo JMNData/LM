@@ -21,7 +21,6 @@ summary(Train.sample.categorical)
 
 #Build MODEL
 model = glm(target~.,data=Train.sample.numeric)
-model2 = rpart(target~.,data=Train.sample.categorical)
 model2 = randomForest(target~.,data=Train.sample.categorical)
 
 
